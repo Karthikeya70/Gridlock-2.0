@@ -5,7 +5,7 @@
 > Illegal parking doesn't just break a rule, it takes away road space and slows everyone down.
 > ParkIntel shows traffic police **where** illegal parking hurts traffic most, **how much**, and **when** to send patrols.
 
-### 🔗 Live demo: **https://karthikeya70.github.io/Gridlock-2.0/**
+### 🔗 Live demo: **[karthikeya70.github.io/Gridlock-2.0](https://karthikeya70.github.io/Gridlock-2.0/#overview)**
 *No install needed. It runs in your browser and works on phones too.*
 
 ![Headline and key numbers](docs/overview-headline.png)
@@ -138,7 +138,7 @@ The app's **Method** page has a full glossary, and every number on the dashboard
 
 ## Run it yourself
 
-The easiest way is the **[live demo](https://karthikeya70.github.io/Gridlock-2.0/)**.
+The easiest way is the **[live demo](https://karthikeya70.github.io/Gridlock-2.0/#overview)**.
 
 To run it on your own computer, you only need Python (for its built-in mini web server). No packages to install:
 
