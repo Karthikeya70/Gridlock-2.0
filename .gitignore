@@ -1,0 +1,7 @@
+# Raw dataset is 105 MB, over GitHub's 100 MB limit. See README to rebuild data/.
+PS1_Dataset.csv
+*.pkl
+__pycache__/
+.ipynb_checkpoints/
+.claude/
+.vscode/

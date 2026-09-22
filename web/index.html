@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Parking Intelligence — Bengaluru</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Questrial&family=Silkscreen&family=Space+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="site-header">
+  <a class="logo" href="#overview" data-go="overview" aria-label="Parking Intelligence home">
+    <span class="logo-word">PARK</span>
+    <span class="logo-blocks"><i class="c-yellow"></i><i class="c-magenta"></i><i class="c-blue"></i><i class="c-red"></i></span>
+    <span class="logo-word">INTEL</span>
+  </a>
+  <span class="header-tag">Bengaluru · GRiDLOCK 2.0 · PS1</span>
+</header>
+
+<main>
+  <div class="pill-toggle-container">
+    <nav class="pill-toggle" id="pill">
+      <div class="pill-slider"></div>
+      <a class="pill-option" data-go="overview">Overview</a>
+      <a class="pill-option" data-go="hotspots">Hotspots</a>
+      <a class="pill-option" data-go="forecast">Forecast</a>
+      <a class="pill-option" data-go="method">Method</a>
+    </nav>
+  </div>
+
+  <!-- ================= OVERVIEW ================= -->
+  <div class="page" id="page-overview">
+    <section class="narrow">
+      <div class="category">GRIDLOCK 2.0 / PS1<span class="cursor blink"></span></div>
+      <h1>Parking Intelligence</h1>
+      <h3 class="subtitle">Where illegal parking chokes Bengaluru's roads, and how much it costs traffic flow</h3>
+
+      <div class="page-contents">
+        <h4>PAGE CONTENTS</h4>
+        <ul class="menu">
+          <li><a href="#map-sec">Impact map</a></li>
+          <li><a href="#when-sec">When it happens</a></li>
+          <li><a href="#where-sec">Where it hurts most</a></li>
+          <li><a href="#who-sec">What blocks the road</a></li>
+        </ul>
+      </div>
+
+      <p id="lede" class="lede"></p>
+
+      <div class="guide">
+        <div class="card-label">NEW HERE? THREE WORDS YOU NEED</div>
+        <dl>
+          <dt>Ticket</dt>
+          <dd>A parking fine (e-challan) a traffic officer issued. Each one has a location, time, vehicle type and offence.</dd>
+          <dt>Impact point</dt>
+          <dd>How much a parked vehicle slows traffic. <strong>1 point = one car parked at the kerb during rush hour.</strong> A bus double-parked at a junction scores much more, a scooter at 3 AM much less.</dd>
+          <dt>Block (P1 / P2 / P3)</dt>
+          <dd>The city is cut into squares of about 220 m &times; 220 m, roughly one city block. <strong>P1</strong> blocks are the 25 worst, where patrols should go first. P2 comes next, then P3.</dd>
+        </dl>
+        <p class="note">Hover over any chart or <span class="info">?</span> for details. The <a href="#method" data-go="method">Method</a> page has a full glossary.</p>
+      </div>
+    </section>
+
+    <section class="narrow">
+      <p class="pixel yellow uppercase small crt">The headline</p>
+      <p class="callout" id="callout">&nbsp;</p>
+      <blockquote class="arc-quote" id="callout-sub"></blockquote>
+      <hr>
+    </section>
+
+    <section class="wide" id="filters-sec">
+      <div class="filters" id="filters"></div>
+      <div class="filter-status" id="filter-status"></div>
+    </section>
+
+    <section class="wide">
+      <div class="kpis" id="kpis"></div>
+    </section>
+
+    <section class="wide" id="map-sec">
+      <div class="sec-head">
+        <h2>Impact map</h2>
+        <div class="seg" id="heat-mode">
+          <button data-v="impact" class="on">Congestion impact</button>
+          <button data-v="count">Ticket density</button>
+        </div>
+      </div>
+      <p class="muted narrow-text">The glow shows <em>where illegal parking hurts traffic most</em> (impact points). Switch to "Ticket density" to see plain ticket counts, and notice they don't always match. Squares outline the P1 and P2 blocks. Zoom in and click a square for its details.</p>
+      <div class="map" id="map-overview"></div>
+      <div class="legend" id="legend-overview"></div>
+    </section>
+
+    <section class="wide" id="when-sec">
+      <h2>When it happens</h2>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-label">ENFORCEMENT vs TRAFFIC DEMAND, BY HOUR</div>
+          <div class="chart" id="chart-hourly"></div>
+          <p class="note" id="gap-note"></p>
+        </div>
+        <div class="card">
+          <div class="card-label">TICKETS, WEEKDAY × HOUR</div>
+          <div class="chart" id="chart-week"></div>
+          <p class="note">Each square is one hour of one weekday. Brighter means more tickets. Read a row left to right to see that day's rhythm.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="wide" id="where-sec">
+      <h2>Where it hurts most</h2>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-label">TOP STATIONS BY CONGESTION IMPACT</div>
+          <div class="chart" id="chart-stations"></div>
+          <p class="note">Bar length = impact points per day ("/d"). Click a bar to filter the whole page to that station.</p>
+        </div>
+        <div class="card">
+          <div class="card-label">VOLUME vs SEVERITY (EACH DOT = A STATION)</div>
+          <div class="chart" id="chart-scatter"></div>
+          <p class="note">Right = more tickets. Higher = each ticket slows traffic more. Stations in the red top-right corner have <em>both</em> problems, so enforce these first.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="wide" id="who-sec">
+      <h2>What blocks the road</h2>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-label">SHARE OF TICKETS vs SHARE OF IMPACT: VEHICLE</div>
+          <div class="chart" id="chart-veh"></div>
+          <p class="note"><span style="color:#1e93ff">Blue</span> = share of all tickets. <span style="color:#e53aa3">Pink</span> = share of all traffic harm. When pink is longer than blue, that vehicle type hurts traffic more than its ticket count suggests.</p>
+        </div>
+        <div class="card">
+          <div class="card-label">SHARE OF TICKETS vs SHARE OF IMPACT: OFFENCE</div>
+          <div class="chart" id="chart-off"></div>
+          <p class="note">Same reading as the left chart, split by offence. Double parking or parking on a main road blocks a moving lane, so each ticket does more harm.</p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ================= HOTSPOTS ================= -->
+  <div class="page" id="page-hotspots" hidden>
+    <section class="narrow">
+      <div class="category">TARGETED ENFORCEMENT<span class="cursor blink"></span></div>
+      <h1>Enforcement Priority</h1>
+      <h3 class="subtitle">220 m cells ranked by how much traffic flow they cost, how chronic they are, and whether they sit on a junction</h3>
+      <p>The city is split into ~220 m squares ("blocks"). Each block gets a <strong>priority score from 0 to 100</strong>, based mostly on how much traffic harm its illegal parking causes, plus how many days it happens, whether it sits on a junction, and whether its neighbours are also bad.</p>
+      <ul class="bullets">
+        <li><span class="tier-dot t-P1"></span><strong>P1</strong>: the top 25 blocks. Patrol every day.</li>
+        <li><span class="tier-dot t-P2"></span><strong>P2</strong>: the next 75. Patrol regularly.</li>
+        <li><span class="tier-dot t-P3"></span><strong>P3</strong>: other blocks that a statistical test says are real hotspots (99% sure), not random bad luck.</li>
+      </ul>
+      <p>Each block also has a <strong>patrol window</strong>: the 3 hours when parking there hurts traffic most. Click a row to fly to it on the map.</p>
+      <hr>
+    </section>
+    <section class="wide">
+      <div class="hot-layout">
+        <div class="map tall" id="map-hot"></div>
+        <div class="hot-side">
+          <div class="filters compact" id="hot-filters"></div>
+          <div class="hot-list" id="hot-list"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ================= FORECAST ================= -->
+  <div class="page" id="page-forecast" hidden>
+    <section class="narrow">
+      <div class="category">PROACTIVE DEPLOYMENT<span class="cursor blink"></span></div>
+      <h1>Tomorrow's Patrol Plan</h1>
+      <h3 class="subtitle">Forecast of where and when parking will cost the most flow, so patrols move before the jam, not after it</h3>
+      <hr>
+    </section>
+    <section class="wide">
+      <div class="fc-controls">
+        <label class="field"><span>DATE</span><input type="date" id="fc-date" value="2024-04-09"></label>
+        <label class="field"><span>STATION DETAIL</span><select id="fc-station"></select></label>
+        <div class="fc-metric" id="fc-metric"></div>
+      </div>
+      <div class="grid-2 fc-grid">
+        <div class="card">
+          <div class="card-label" id="fc-plan-label">DEPLOYMENT PLAN</div>
+          <div id="fc-plan"></div>
+        </div>
+        <div class="card">
+          <div class="card-label" id="fc-station-label">STATION FORECAST</div>
+          <div class="chart" id="chart-fc"></div>
+          <div class="card-label" style="margin-top:24px">PRIORITY CELLS IN THIS STATION</div>
+          <div id="fc-cells"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ================= METHOD ================= -->
+  <div class="page" id="page-method" hidden>
+    <section class="narrow">
+      <div class="category">METHOD<span class="cursor blink"></span></div>
+      <h1>How It Works</h1>
+      <h3 class="subtitle">From 298k raw e-challans to a ranked, forecastable enforcement plan</h3>
+
+      <div class="page-contents">
+        <h4>PAGE CONTENTS</h4>
+        <ul class="menu">
+          <li><a href="#m-glossary">Glossary</a></li>
+          <li><a href="#m-clean">Cleaning</a></li>
+          <li><a href="#m-impact">Congestion impact score</a></li>
+          <li><a href="#m-hot">Hotspot detection</a></li>
+          <li><a href="#m-fc">Forecast model</a></li>
+          <li><a href="#m-limits">Limitations</a></li>
+        </ul>
+      </div>
+
+      <h2 id="m-glossary">Glossary</h2>
+      <p>Every term used in this app, in plain words.</p>
+      <table class="tbl glossary">
+        <tbody>
+          <tr><td>Ticket / e-challan</td><td>A digital parking fine issued by Bengaluru Traffic Police (BTP), with GPS location, time, vehicle and offence.</td></tr>
+          <tr><td>Impact point</td><td>Our unit of traffic harm. 1 point = one car parked at the kerb during rush hour, not at a junction.</td></tr>
+          <tr><td>PCU</td><td><em>Passenger Car Unit</em>: how much road space a vehicle takes compared to a car. Car = 1, scooter = 0.5, bus = 2.2. From the Indian Roads Congress standard IRC:106.</td></tr>
+          <tr><td>Obstruction weight</td><td>How much moving lane an offence blocks. Parking at the kerb = 1, on a main road = 2, double parking (a second row) = 3.</td></tr>
+          <tr><td>Junction</td><td>A named BTP traffic junction. Parking there counts 1.5&times; because junctions are where traffic already queues.</td></tr>
+          <tr><td>Block / cell</td><td>A ~220 m &times; 220 m square of the city, small enough for one patrol to cover.</td></tr>
+          <tr><td>Hotspot test (Gi*)</td><td>A standard statistical test (Getis-Ord Gi*) that checks whether a block <em>and its neighbours</em> are unusually bad, so we don't chase one-off spikes.</td></tr>
+          <tr><td>Priority score (EPI)</td><td><em>Enforcement Priority Index</em>, 0&ndash;100. Blends traffic harm, how many days it happens, junction share and hotspot strength.</td></tr>
+          <tr><td>P1 / P2 / P3</td><td>Priority tiers: top 25 blocks, next 75, then the other statistically real hotspots.</td></tr>
+          <tr><td>Patrol window</td><td>The 3-hour slot when a block's parking harms traffic most, i.e. when to send officers.</td></tr>
+          <tr><td>Forecast</td><td>A prediction of tickets and traffic harm per station, per hour, for a chosen date, learned from past patterns.</td></tr>
+          <tr><td>MAE</td><td><em>Mean Absolute Error</em>: on average, how far the prediction is from reality (here, in tickets per station per hour). Lower is better.</td></tr>
+          <tr><td>Top-10 hit rate</td><td>Out of each day's 10 busiest stations, how many the forecast named correctly.</td></tr>
+          <tr><td>Data leakage</td><td>When a model accidentally sees the answers during training, so its test score looks better than it really is. Fixed here.</td></tr>
+        </tbody>
+      </table>
+      <hr>
+
+      <h2 id="m-clean">Cleaning</h2>
+      <div id="m-clean-body"></div>
+      <hr>
+
+      <h2 id="m-impact">Congestion impact score</h2>
+      <p>The dataset has no speed or volume feed, so impact is estimated from what each ticket tells us about the road space it removed. Every violation gets:</p>
+      <pre class="formula">impact = PCU(vehicle) × obstruction(offence) × junction × demand(hour)</pre>
+      <ul class="bullets">
+        <li><strong>PCU</strong> is the Passenger Car Unit from IRC:106-1990. A bus parked on the carriageway takes 2.2× the space of a car, a scooter 0.5×.</li>
+        <li><strong>Obstruction</strong> is how much moving lane the offence takes. Kerbside no-parking = 1.0, main road = 2.0, near a crossing or signal = 2.0, double parking = 3.0.</li>
+        <li><strong>Junction</strong> = 1.5 when the ticket is tagged to a BTP junction, because intersections are capacity bottlenecks.</li>
+        <li><strong>Demand</strong> is relative traffic demand by hour (twin peaks), so a blocked lane at 9 AM costs more than one at 3 AM.</li>
+      </ul>
+      <div class="grid-2 tight">
+        <div><div class="card-label">OBSTRUCTION WEIGHTS</div><table class="tbl" id="m-obs"></table></div>
+        <div><div class="card-label">DEMAND PROFILE (HOUR →)</div><div class="chart" id="chart-demand"></div></div>
+      </div>
+      <hr>
+
+      <h2 id="m-hot">Hotspot detection</h2>
+      <p>The original DBSCAN run (150 m, 60k-point sample) chained central Bengaluru into one mega-cluster of 12k points, which is too big to patrol. Instead the full dataset is binned into ~220 m cells, a block a patrol can actually cover:</p>
+      <ul class="bullets">
+        <li><strong>Getis-Ord Gi*</strong> on impact (3×3 neighbourhood) flags cells whose surroundings are significantly hotter than the city (z &gt; 2.58).</li>
+        <li><strong>EPI</strong> = 55% impact rank + 25% persistence (share of days active) + 10% junction share + 10% Gi* rank.</li>
+        <li>Each cell reports its dominant road, junction, vehicle, offence, and the <strong>3-hour window</strong> with most impact, which becomes the recommended patrol slot.</li>
+      </ul>
+      <hr>
+
+      <h2 id="m-fc">Forecast model</h2>
+      <div id="m-fc-body"></div>
+      <table class="tbl" id="m-metrics"></table>
+      <hr>
+
+      <h2 id="m-limits">Limitations</h2>
+      <ul class="bullets" id="m-limits-body"></ul>
+    </section>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <span class="pixel">PARK■INTEL</span>
+  <span class="muted">Flipkart GRiDLOCK 2.0 · Problem Statement 1 · Poor Visibility on Parking-Induced Congestion</span>
+</footer>
+
+<div class="tip" id="tip"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
