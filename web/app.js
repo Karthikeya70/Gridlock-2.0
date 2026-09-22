@@ -489,7 +489,7 @@ function buildOverviewStatic() {
   const m = makeMap("map-overview");
   overviewCells = L.layerGroup(HOT.filter((h) => h.tier === "P1" || h.tier === "P2").map((h) =>
     cellRect(h, { fillOpacity: 0.08 }).bindPopup(hotPopup(h)))).addTo(m);
-  $("#legend-overview").innerHTML = `<span>heat<span class="ramp">${[C.maroon, C.red, C.orange, C.yellow].map((c) => `<i style="background:${c}"></i>`).join("")}</span>high</span><span><span class="tier-dot t-P1"></span>P1 cell</span><span><span class="tier-dot t-P2"></span>P2 cell</span>`;
+  $("#legend-overview").innerHTML = `<span>heat<span class="ramp">${[C.maroon, C.red, C.orange, C.yellow].map((c) => `<i style="background:${c}"></i>`).join("")}</span>high</span><span><span class="tier-dot t-P1"></span>P1 block</span><span><span class="tier-dot t-P2"></span>P2 block</span>`;
   $("#heat-mode").addEventListener("click", (e) => {
     const b = e.target.closest("button"); if (!b) return;
     state.heatMode = b.dataset.v;
