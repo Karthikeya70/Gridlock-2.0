@@ -5,6 +5,9 @@
 > Illegal parking doesn't just break a rule, it takes away road space and slows everyone down.
 > ParkIntel shows traffic police **where** illegal parking hurts traffic most, **how much**, and **when** to send patrols.
 
+### 🔗 Live demo: **https://karthikeya70.github.io/Gridlock-2.0/**
+*No install needed. It runs in your browser and works on phones too.*
+
 ![Headline and key numbers](docs/overview-headline.png)
 
 ---
@@ -88,7 +91,7 @@ flowchart LR
     C --> D[Group into<br/>220 m city blocks]
     D --> E[Find real hotspots<br/>and rank them<br/>P1 / P2 / P3]
     C --> F[Learn patterns<br/>to forecast<br/>future days]
-    E --> G[Web app:<br/>map, rankings,<br/>patrol plan]
+    E --> G[Live web app:<br/>map, rankings,<br/>patrol plan]
     F --> G
 ```
 
@@ -135,25 +138,31 @@ The app's **Method** page has a full glossary, and every number on the dashboard
 
 ## Run it yourself
 
-You need **Python 3.10+**. The processed data is already in this repo, so you don't need the big dataset just to run the app.
+The easiest way is the **[live demo](https://karthikeya70.github.io/Gridlock-2.0/)**.
+
+To run it on your own computer, you only need Python (for its built-in mini web server). No packages to install:
 
 ```bash
 git clone https://github.com/Karthikeya70/Gridlock-2.0.git
 cd Gridlock-2.0
-pip install -r requirements.txt
-uvicorn server:app --port 8000
+python -m http.server 8000 --directory web
 ```
 
 Then open **http://localhost:8000** in your browser.
 
-> **"Port already in use" error?** Another program is using port 8000. Use `--port 8001` and open http://localhost:8001 instead.
+> **"Port already in use" error?** Another program is using port 8000. Use `8001` instead and open http://localhost:8001.
+>
+> **Why not just double-click `index.html`?** Browsers block pages opened from disk from loading their data files, so it needs a tiny local server like the one above.
 
 ### Rebuilding the data from scratch (optional)
 The raw dataset (`PS1_Dataset.csv`, 105 MB) is **not in this repo** because GitHub doesn't allow files over 100 MB. If you have it from the GRiDLOCK 2.0 problem page:
 
 1. Put `PS1_Dataset.csv` in the project folder.
-2. Run `python pipeline.py` (takes about 30 seconds). This rebuilds everything in `data/`.
-3. Start the server as above.
+2. Run `pip install -r requirements.txt`, then `python pipeline.py` (takes about 30 seconds). This rebuilds everything in `web/data/`.
+3. Start the local server as above.
+
+### How the live site is published
+Every push to `main` automatically republishes the site through GitHub Pages (see `.github/workflows/pages.yml`). The whole app is static: all filtering and forecasting happens in the browser, so there's no server to pay for or keep running.
 
 ---
 
@@ -161,17 +170,17 @@ The raw dataset (`PS1_Dataset.csv`, 105 MB) is **not in this repo** because GitH
 
 ```
 Gridlock-2.0/
-├── pipeline.py        # Data cleaning, impact scoring, hotspot ranking, forecast model → writes data/
-├── server.py          # Small web server (FastAPI) that serves the app and its data
-├── web/
+├── pipeline.py        # Data cleaning, impact scoring, hotspot ranking, forecast model → writes web/data/
+├── web/               # The whole app. This folder is what gets published online
 │   ├── index.html     # Page layout and text
 │   ├── styles.css     # Look and feel (inspired by arcprize.org)
-│   └── app.js         # Map, charts, filters and interactions
-├── data/              # Pre-computed results (so the app runs without the raw dataset)
-│   ├── records.parquet   # Cleaned fines with impact scores
-│   ├── hotspots.json     # Ranked city blocks
-│   ├── forecast.json     # Forecast per station × weekday × hour
-│   └── meta.json         # Summary numbers, model accuracy, settings
+│   ├── app.js         # Map, charts, filters, forecast plan (all computed in the browser)
+│   └── data/          # Pre-computed results (so the app runs without the raw dataset)
+│       ├── records.bin      # 2.5 lakh cleaned fines, packed into 2.3 MB
+│       ├── hotspots.json    # Ranked city blocks
+│       ├── forecast.json    # Forecast per station × weekday × hour
+│       └── meta.json        # Summary numbers, model accuracy, settings
+├── .github/workflows/ # Auto-publishes web/ to GitHub Pages
 ├── docs/              # Screenshots used in this README
 ├── main.ipynb         # Early exploration notebook (first draft, superseded by pipeline.py)
 └── requirements.txt
@@ -204,6 +213,6 @@ Gridlock-2.0/
 
 ---
 
-**Tech:** Python · pandas · scikit-learn · FastAPI · Leaflet (maps) · plain JavaScript and SVG (charts)
+**Tech:** Python · pandas · scikit-learn (data and models) · Leaflet (maps) · plain JavaScript and SVG (charts) · GitHub Pages (hosting)
 
 Built for **Flipkart GRiDLOCK 2.0**.

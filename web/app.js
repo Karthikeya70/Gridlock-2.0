@@ -18,7 +18,7 @@ const hh = (h) => `${String(h % 24).padStart(2, "0")}:00`;
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const title = (s) => String(s ?? "").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 
-let META, HOT;
+let META, HOT, FC, REC;
 const state = { stations: [], vgroups: [], offences: [], days: [], h0: 0, h1: 23, heatMode: "impact" };
 
 /* ---------------- tooltip ---------------- */
@@ -359,14 +359,66 @@ function buildFilters() {
 
 /* ---------------- overview ---------------- */
 let heatLayer, overviewCells, lastOverview;
-function qs() {
-  const p = new URLSearchParams();
-  if (state.stations.length) p.set("stations", state.stations.join("|"));
-  if (state.vgroups.length) p.set("vgroups", state.vgroups.join("|"));
-  if (state.offences.length) p.set("offences", state.offences.join("|"));
-  if (state.days.length) p.set("days", state.days.join("|"));
-  p.set("h0", state.h0); p.set("h1", state.h1);
-  return p.toString();
+/* records.bin: grouped tickets as typed-array columns (layout in meta.records) */
+function loadRecords(buf) {
+  const R = META.records, T = { float32: Float32Array, uint16: Uint16Array, uint8: Uint8Array };
+  const cols = {};
+  R.columns.forEach((c) => (cols[c.name] = new T[c.type](buf, c.offset, R.rows)));
+  return cols;
+}
+
+// Everything the overview needs, for the current filters, in one pass over the rows.
+function computeOverview() {
+  const R = REC, O = META.options, rows = META.records.rows;
+  const want = (list, names) => {
+    if (!list.length) return null;
+    const m = new Uint8Array(names.length);
+    list.forEach((v) => (m[names.indexOf(v)] = 1));
+    return m;
+  };
+  const fs = want(state.stations, O.stations), fv = want(state.vgroups, O.vgroups), fo = want(state.offences, O.offences);
+  const fd = state.days.length ? new Set(state.days.map(Number)) : null;
+  const nS = O.stations.length, nV = O.vgroups.length, nO = O.offences.length;
+  const hc = new Float64Array(24), hi = new Float64Array(24), week = Array.from({ length: 7 }, () => new Array(24).fill(0));
+  const sc = new Float64Array(nS), si = new Float64Array(nS), vc = new Float64Array(nV), vi = new Float64Array(nV), oc = new Float64Array(nO), oi = new Float64Array(nO);
+  const heat = new Map(), p1i = META.records.tiers.indexOf("P1");
+  let n = 0, imp = 0, blk = 0, jn = 0, p1 = 0;
+  for (let r = 0; r < rows; r++) {
+    const h = R.hour[r];
+    if (h < state.h0 || h > state.h1) continue;
+    const st = R.stn[r], ve = R.veh[r], of = R.off[r], dw = R.dow[r];
+    if ((fs && !fs[st]) || (fv && !fv[ve]) || (fo && !fo[of]) || (fd && !fd.has(dw))) continue;
+    const c = R.n[r], i = R.impact[r];
+    n += c; imp += i; blk += R.blocked[r]; if (R.jn[r]) jn += c; if (R.tier[r] === p1i) p1 += i;
+    hc[h] += c; hi[h] += i; week[dw][h] += c;
+    sc[st] += c; si[st] += i; vc[ve] += c; vi[ve] += i; oc[of] += c; oi[of] += i;
+    const key = R.by[r] * 65536 + R.bx[r], cell = heat.get(key);
+    if (cell) { cell[0] += c; cell[1] += i; } else heat.set(key, [c, i]);
+  }
+  if (!n) return { n: 0 };
+  const days = META.dataset.days, deg = META.records.bin_deg, by0 = META.records.by0, bx0 = META.records.bx0;
+  const round = (v, d) => Math.round(v * 10 ** d) / 10 ** d;
+  const stations = O.stations.map((k, j) => ({ k, c: sc[j], i: round(si[j], 1), ipv: si[j] / (sc[j] || 1) })).filter((x) => x.c > 0);
+  const mix = (names, cc, ii) => names.map((k, j) => ({ k, c: cc[j], i: round(ii[j], 1) })).filter((x) => x.c > 0).sort((a, b) => b.i - a.i);
+  const byImpact = [...stations].sort((a, b) => b.i - a.i);
+  return {
+    n,
+    impact: round(imp, 1),
+    impact_per_day: round(imp / days, 1),
+    blocked_km_day: round(blk / days / 1000, 2),
+    junction_share: jn / n,
+    stations: stations.length,
+    peak_hour: hi.indexOf(Math.max(...hi)),
+    top_station: byImpact[0].k,
+    p1_share: p1 / imp,
+    heat: [...heat].map(([key, [c, i]]) => [round((Math.floor(key / 65536) + by0) * deg, 4), round(((key % 65536) + bx0) * deg, 4), c, i]),
+    hourly: { c: [...hc], i: [...hi].map((v) => round(v, 1)) },
+    week,
+    top_stations: byImpact.slice(0, 12),
+    scatter: stations,
+    vgroups: mix(O.vgroups, vc, vi),
+    offences: mix(O.offences, oc, oi),
+  };
 }
 
 function drawHeat() {
@@ -388,8 +440,7 @@ function drawHeat() {
 }
 
 async function refresh() {
-  $("#filter-status").textContent = "Loading…";
-  const d = await fetch("/api/overview?" + qs()).then((r) => r.json());
+  const d = computeOverview();
   lastOverview = d;
   if (!d.n) {
     $("#filter-status").textContent = "No tickets match these filters. Loosen them.";
@@ -506,6 +557,24 @@ function buildHotspots() {
 }
 
 /* ---------------- forecast page ---------------- */
+// Plan for a date: every station ranked by expected impact, with its best 3-hour window.
+function computeForecast(date, station) {
+  const dt = new Date(date + "T00:00:00");
+  const dow = (dt.getDay() + 6) % 7; // Monday = 0, like pandas
+  const sum = (a) => a.reduce((x, y) => x + y, 0);
+  const plan = Object.entries(FC).map(([s, v]) => {
+    const imp = v.impact[dow];
+    const win = imp.map((_, h) => imp[h] + imp[(h + 1) % 24] + imp[(h + 2) % 24]);
+    return { station: s, count: sum(v.count[dow]), impact: sum(imp), window: win.indexOf(Math.max(...win)) };
+  }).sort((a, b) => b.impact - a.impact);
+  plan.forEach((r, i) => (r.rank = i + 1));
+  const res = { date, dow, plan };
+  if (FC[station]) res.station = {
+    name: station, count: FC[station].count[dow], impact: FC[station].impact[dow],
+    hotspots: HOT.filter((h) => h.station === station).slice(0, 8),
+  };
+  return res;
+}
 let fcBuilt = false;
 function buildForecast() {
   if (fcBuilt) return;
@@ -515,8 +584,8 @@ function buildForecast() {
   const mt = META.metrics;
   $("#fc-metric").innerHTML = `<strong>How reliable is this?</strong> We hid the last 3 weeks of data and asked the model to predict them. It named <strong>${Math.round(mt.top10_station_hit_rate * 10)} of each day's 10 busiest stations</strong> correctly, and its hourly guesses were off by about ${mt.mae_model.toFixed(1)} tickets on average (a plain average is off by ${mt.mae_global_mean.toFixed(1)}).`;
   let firstLoad = true;
-  async function load() {
-    const d = await fetch(`/api/forecast?date=${$("#fc-date").value}&station=${encodeURIComponent(sel.value)}`).then((r) => r.json());
+  function load() {
+    const d = computeForecast($("#fc-date").value, sel.value);
     if (firstLoad) { sel.value = d.plan[0].station; firstLoad = false; return load(); }
     const dayName = DAYS_LONG[d.dow];
     $("#fc-plan-label").textContent = `DEPLOYMENT PLAN · ${dayName.toUpperCase()} ${d.date}`;
@@ -579,7 +648,13 @@ const onShow = { hotspots: buildHotspots, forecast: buildForecast, method: build
 
 /* ---------------- boot ---------------- */
 (async function boot() {
-  [META, HOT] = await Promise.all([fetch("/api/meta").then((r) => r.json()), fetch("/api/hotspots").then((r) => r.json())]);
+  const get = (f) => fetch("data/" + f).then((r) => { if (!r.ok) throw new Error(f + " " + r.status); return r; });
+  let buf;
+  [META, HOT, FC, buf] = await Promise.all([
+    get("meta.json").then((r) => r.json()), get("hotspots.json").then((r) => r.json()),
+    get("forecast.json").then((r) => r.json()), get("records.bin").then((r) => r.arrayBuffer()),
+  ]);
+  REC = loadRecords(buf);
   buildOverviewStatic();
   buildFilters();
   go(location.hash.slice(1) || "overview");

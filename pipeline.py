@@ -4,8 +4,9 @@ Parking Intelligence pipeline — Flipkart GRiDLOCK 2.0, PS1
  quantify their impact on traffic flow to enable targeted enforcement?"
 
 Run once:  python pipeline.py
-Produces everything the dashboard needs in ./data/ :
-    records.parquet   cleaned, feature-engineered violations (for live filtering)
+Produces everything the (fully static) web app needs in ./web/data/ :
+    records.bin       cleaned violations, grouped + packed as binary columns
+                      (layout described in meta.json -> "records")
     hotspots.json     ~220 m grid cells, Gi* significance, Enforcement Priority Index
     forecast.json     station x weekday x hour forecast of violations + impact
     meta.json         model metrics, dataset facts, filter options, findings
@@ -19,8 +20,8 @@ from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.metrics import mean_absolute_error
 
 SRC = Path("PS1_Dataset.csv")
-OUT = Path("data")
-OUT.mkdir(exist_ok=True)
+OUT = Path("web/data")
+OUT.mkdir(parents=True, exist_ok=True)
 
 # ---------------------------------------------------------------------------
 # 1. Traffic-impact model assumptions (all transparent, all tunable)
@@ -335,13 +336,43 @@ for i, s in enumerate(stations):
 # ---------------------------------------------------------------------------
 # 6. Records for the live dashboard + metadata / findings
 # ---------------------------------------------------------------------------
-keep = df[["latitude", "longitude", "police_station", "vgroup", "offence",
-           "hour", "dow", "date", "at_junction", "impact", "blocked_m",
-           "tier"]].copy()
-keep["tier"] = keep["tier"].fillna("—")
-for c in ["police_station", "vgroup", "offence", "tier"]:
-    keep[c] = keep[c].astype("category")
-keep.to_parquet(OUT / "records.parquet", index=False)
+# The browser filters these itself, so pack them small: identical rows
+# (same ~110 m bin, station, vehicle, offence, hour, weekday, junction, tier)
+# are merged with a count, then written as contiguous typed-array columns.
+HEAT = 0.001
+TIERS = ["P1", "P2", "P3", "Watch", "-"]
+vgroups = sorted(df["vgroup"].unique())
+offences = df["offence"].value_counts().index.tolist()
+rec = pd.DataFrame({
+    "by": np.round(df["latitude"] / HEAT).astype(int),
+    "bx": np.round(df["longitude"] / HEAT).astype(int),
+    "stn": df["police_station"].map({s: i for i, s in enumerate(stations)}),
+    "veh": df["vgroup"].map({v: i for i, v in enumerate(vgroups)}),
+    "off": df["offence"].map({o: i for i, o in enumerate(offences)}),
+    "hour": df["hour"], "dow": df["dow"],
+    "jn": df["at_junction"].astype(int),
+    "tier": df["tier"].fillna("-").map({t: i for i, t in enumerate(TIERS)}),
+    "impact": df["impact"], "blocked": df["blocked_m"],
+})
+keys = ["by", "bx", "stn", "veh", "off", "hour", "dow", "jn", "tier"]
+rec = (rec.groupby(keys).agg(n=("impact", "size"), impact=("impact", "sum"),
+                             blocked=("blocked", "sum")).reset_index())
+by0, bx0 = int(rec["by"].min()), int(rec["bx"].min())
+rec["by"] -= by0
+rec["bx"] -= bx0
+# float32 first keeps every typed-array view 4-byte aligned
+COLS = [("impact", "float32"), ("blocked", "float32"), ("by", "uint16"),
+        ("bx", "uint16"), ("n", "uint16"), ("stn", "uint8"), ("veh", "uint8"),
+        ("off", "uint8"), ("hour", "uint8"), ("dow", "uint8"), ("jn", "uint8"),
+        ("tier", "uint8")]
+layout, offset, blob = [], 0, bytearray()
+for name, dt in COLS:
+    arr = rec[name].to_numpy().astype(dt)
+    layout.append({"name": name, "type": dt, "offset": offset})
+    blob += arr.tobytes()
+    offset += arr.nbytes
+(OUT / "records.bin").write_bytes(bytes(blob))
+print(f"  records.bin: {len(rec):,} grouped rows, {len(blob) / 1e6:.1f} MB")
 
 hour_n = df.groupby("hour").size().reindex(range(24), fill_value=0)
 evening = hour_n.loc[17:21].sum() / hour_n.sum()
@@ -362,9 +393,11 @@ meta = {
     "metrics": metrics,
     "options": {
         "stations": stations,
-        "vgroups": sorted(df["vgroup"].unique()),
-        "offences": df["offence"].value_counts().index.tolist(),
+        "vgroups": vgroups,
+        "offences": offences,
     },
+    "records": {"rows": int(len(rec)), "bin_deg": HEAT, "by0": by0, "bx0": bx0,
+                "tiers": TIERS, "columns": layout},
     "findings": {
         "p1_cells": int(len(p1)),
         "p1_area_km2": round(area_p1, 2),

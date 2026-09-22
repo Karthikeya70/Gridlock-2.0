@@ -97,6 +97,81 @@
    "PARKING OTHER THAN BUS STOP"
   ]
  },
+ "records": {
+  "rows": 107937,
+  "bin_deg": 0.001,
+  "by0": 12803,
+  "bx0": 77443,
+  "tiers": [
+   "P1",
+   "P2",
+   "P3",
+   "Watch",
+   "-"
+  ],
+  "columns": [
+   {
+    "name": "impact",
+    "type": "float32",
+    "offset": 0
+   },
+   {
+    "name": "blocked",
+    "type": "float32",
+    "offset": 431748
+   },
+   {
+    "name": "by",
+    "type": "uint16",
+    "offset": 863496
+   },
+   {
+    "name": "bx",
+    "type": "uint16",
+    "offset": 1079370
+   },
+   {
+    "name": "n",
+    "type": "uint16",
+    "offset": 1295244
+   },
+   {
+    "name": "stn",
+    "type": "uint8",
+    "offset": 1511118
+   },
+   {
+    "name": "veh",
+    "type": "uint8",
+    "offset": 1619055
+   },
+   {
+    "name": "off",
+    "type": "uint8",
+    "offset": 1726992
+   },
+   {
+    "name": "hour",
+    "type": "uint8",
+    "offset": 1834929
+   },
+   {
+    "name": "dow",
+    "type": "uint8",
+    "offset": 1942866
+   },
+   {
+    "name": "jn",
+    "type": "uint8",
+    "offset": 2050803
+   },
+   {
+    "name": "tier",
+    "type": "uint8",
+    "offset": 2158740
+   }
+  ]
+ },
  "findings": {
   "p1_cells": 25,
   "p1_area_km2": 1.2,

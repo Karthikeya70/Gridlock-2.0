@@ -1,6 +1,5 @@
+# Only needed to rebuild web/data from the raw dataset (python pipeline.py).
+# The web app itself is static and needs no Python.
 pandas>=2.0
 numpy>=1.24
 scikit-learn>=1.3
-pyarrow>=14
-fastapi>=0.110
-uvicorn>=0.29
